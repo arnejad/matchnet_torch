@@ -6,9 +6,8 @@ import numpy as np
 import os
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from config import DATA_DIR
 
-from config import DBs, DATA_DIR
+from config import DBs, DATA_DIR, TEMPS_DIR
 
 def ParseArgs():
     """Parse input arguments.
@@ -22,7 +21,7 @@ def ParseArgs():
     return args
 
 
-def train_one_epoch(epoch_index):
+def train_one_epoch(data_loader, optimizer, model, loss_fn):
     running_loss = 0.
     last_loss = 0.
 
@@ -50,7 +49,7 @@ def train_one_epoch(epoch_index):
         # Gather data and report
         running_loss += loss.item()
         if i % 100 == 99:
-            last_loss = running_loss / 1000 # loss per batch
+            last_loss = running_loss # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             # tb_x = epoch_index * len(data_loader) + i + 1
             # tb_writer.add_scalar('Loss/train', last_loss, tb_x)
@@ -64,22 +63,23 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device")
 
-    if not os.path.exists(DATA_DIR+"All_matches.csv"):  #read from saved files if already available
+    if not os.path.exists(TEMPS_DIR+"All_matches.csv"):  #read from saved files if already available
         DBcombiner(DBs)
-
-    matchSet = np.genfromtxt(DATA_DIR+"All_matches.csv", delimiter=',')
-    nonmatchSet = np.genfromtxt(DATA_DIR+"All_nonmatches.csv", delimiter=',')
+    # else:
+    #     matchSet = np.genfromtxt(DATA_DIR+"All_matches.csv", delimiter=',')
+    #     nonmatchSet = np.genfromtxt(DATA_DIR+"All_nonmatches.csv", delimiter=',')
 
     #check the model
     model = matchnet().to(device)
     print(model)
         
     transform = transforms.Compose([    
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=128,std=160)
     ])
 
 
-    dataset = patchSet(DATA_DIR, transforms=transform)
+    dataset = patchSet(TEMPS_DIR, transforms=transform)
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=128, shuffle=True, num_workers=4)
@@ -101,12 +101,12 @@ def main():
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        avg_loss = train_one_epoch(epoch)
+        avg_loss = train_one_epoch(data_loader, optimizer, model, loss_fn)
         # update the learning rate
         # lr_scheduler.step()
         # evaluate on the test dataset
         # evaluate(model, data_loader_test, device=device)
-        torch.save(model.state_dict(), '/data/p306627/models/matchnet')
+    torch.save(model.state_dict(), '/data/p306627/models/matchnet')
 
     print("That's it!")
 

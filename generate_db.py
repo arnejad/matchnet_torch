@@ -1,12 +1,13 @@
 # This code is extracted and adapted from https://github.com/hanxf/matchnet/blob/master/models/feature_net.pbtxt
+# Execute this code once to obtain the datasets.
 
 import os
 import numpy as np
 import skimage as skimage
 from skimage.io import imsave, imread
 
-DATASETS = [ 'notredame','yosemite']
-# 'liberty',
+DATASETS = [ 'notredame','yosemite', 'liberty']
+
 
 def GetPatchImage(patch_id, container_dir):
     """Returns a 64 x 64 patch with the given patch_id. Catch container images to
