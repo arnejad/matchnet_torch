@@ -3,7 +3,7 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:v100:1
-
+#SBATCH --constraint=nvme
 
 
 module load PyTorch/1.6.0-fosscuda-2019b-Python-3.7.4
