@@ -121,20 +121,23 @@ def main():
         # train for one epoch, printing every 10 iterations
         avg_loss = train_one_epoch(epoch, train_loader, optimizer, model, loss_fn)
         train_losses = np.append(train_losses, avg_loss)
-        # update the learning rate
-        # lr_scheduler.step()
-        # evaluate on the test dataset
-        running_vloss = 0.0
-        for i, vdata in enumerate(vaild_loader):
-            vinputs, vlabels = vdata
-            voutputs = model(vinputs)
-            vloss = loss_fn(voutputs, vlabels)
-            running_vloss += vloss
 
-        avg_vloss = running_vloss / (i + 1)
-        vldn_losses = np.append(vldn_losses, avg_loss)
-        print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
+        valid_loss = 0.0
 
+
+        for data, labels in vaild_loader:
+            if torch.cuda.is_available():
+                data, labels = data.cuda(), labels.cuda()
+        
+            # Forward Pass
+            target = model(data)
+            # Find the Loss
+            loss = loss_fn(target,labels)
+            # Calculate Loss
+            valid_loss += loss.item()
+
+
+        print(f'Epoch {epoch+1} \t\t Training Loss: {avg_loss} \t\t Validation Loss: {valid_loss / len(vaild_loader)}')
 
         np.savetxt(OUT_DIR+"trainLosses.csv", train_losses, delimiter=",")
         np.savetxt(OUT_DIR+"validationLosses.csv", vldn_losses, delimiter=",")
