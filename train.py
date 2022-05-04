@@ -2,12 +2,14 @@ from model import classifier_net, feature_net, matchnet
 from dataloader import DBcombiner, patchSet
 import torch
 import torchvision.transforms as transforms
+from torch.utils.data import random_split
+
 import numpy as np
 import os
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-from config import DBs, DATA_DIR, TEMPS_DIR
+from config import DBs, DATA_DIR, TEMPS_DIR, OUT_DIR
 
 def ParseArgs():
     """Parse input arguments.
@@ -21,7 +23,7 @@ def ParseArgs():
     return args
 
 
-def train_one_epoch(data_loader, optimizer, model, loss_fn):
+def train_one_epoch(epoch, data_loader, optimizer, model, loss_fn):
     running_loss = 0.
     last_loss = 0.
 
@@ -49,11 +51,12 @@ def train_one_epoch(data_loader, optimizer, model, loss_fn):
         # Gather data and report
         running_loss += loss.item()
         if i % 100 == 99:
-            last_loss = running_loss # loss per batch
-            print('  batch {} loss: {}'.format(i + 1, last_loss))
+            # last_loss = running_loss/100 # loss per batch
+            print(f'[e:{epoch + 1}, b:{i + 1:5d}] loss: {running_loss / 100:.8f}')
+
             # tb_x = epoch_index * len(data_loader) + i + 1
             # tb_writer.add_scalar('Loss/train', last_loss, tb_x)
-            running_loss = 0.
+            running_loss = 0.0
 
     return last_loss
 
@@ -80,12 +83,26 @@ def main():
 
 
     dataset = patchSet(TEMPS_DIR, transforms=transform)
+    # sample_ds = SubsetRandomSampler(dataset, np.arange(dataset.__len__()))
 
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=128, shuffle=True, num_workers=4)
+    # assert len(sample_ds) == dataset.__len__()
+
+    # train_sampler = RandomSampler(sample_ds)
+
+
         # collate_fn=torch.utils.data.collate_fn)
+    
+    train_set_size = int(len(dataset) * 0.7)
+    valid_set_size = len(dataset) - train_set_size
+    train_set, valid_set = torch.utils.data.random_split(dataset, [train_set_size, valid_set_size])
 
-    dataiter = iter(data_loader)
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=128, num_workers=4)    
+
+    vaild_loader = torch.utils.data.DataLoader(
+        valid_set, batch_size=128, num_workers=4) 
+
+    dataiter = iter(train_loader)
     images, labels = dataiter.next()
 
     print(type(images))
@@ -98,15 +115,36 @@ def main():
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     num_epochs = 150000
-
+    train_losses = np.array([])
+    vldn_losses = np.array([])
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        avg_loss = train_one_epoch(data_loader, optimizer, model, loss_fn)
+        avg_loss = train_one_epoch(epoch, train_loader, optimizer, model, loss_fn)
+        train_losses = np.append(train_losses, avg_loss)
         # update the learning rate
         # lr_scheduler.step()
         # evaluate on the test dataset
-        # evaluate(model, data_loader_test, device=device)
-    torch.save(model.state_dict(), '/data/p306627/models/matchnet')
+        running_vloss = 0.0
+        for i, vdata in enumerate(vaild_loader):
+            vinputs, vlabels = vdata
+            voutputs = model(vinputs)
+            vloss = loss_fn(voutputs, vlabels)
+            running_vloss += vloss
+
+        avg_vloss = running_vloss / (i + 1)
+        vldn_losses = np.append(vldn_losses, avg_loss)
+        print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
+
+
+        np.savetxt(OUT_DIR+"trainLosses.csv", train_losses, delimiter=",")
+        np.savetxt(OUT_DIR+"validationLosses.csv", vldn_losses, delimiter=",")
+
+        if epoch % 5 == 0:
+            print("saving model")
+            torch.save(model.state_dict(), OUT_DIR+"matchnet-last")
+
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    torch.save(model.state_dict(), OUT_DIR+"matchnet-"+timestr)
 
     print("That's it!")
 
