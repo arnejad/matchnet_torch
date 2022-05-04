@@ -7,20 +7,8 @@ from torch.utils.data import random_split
 import numpy as np
 import os
 import time
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from config import DBs, DATA_DIR, TEMPS_DIR, OUT_DIR
-
-def ParseArgs():
-    """Parse input arguments.
-    """
-    parser = ArgumentParser(description=__doc__,
-                            formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('DATA_dir',
-                        help='Feature network description.')
-    
-    args = parser.parse_args()
-    return args
 
 
 def train_one_epoch(epoch, data_loader, optimizer, model, loss_fn):
@@ -51,7 +39,7 @@ def train_one_epoch(epoch, data_loader, optimizer, model, loss_fn):
         # Gather data and report
         running_loss += loss.item()
         if i % 100 == 99:
-            # last_loss = running_loss/100 # loss per batch
+            last_loss = running_loss/100 # loss per batch
             print(f'[e:{epoch + 1}, b:{i + 1:5d}] loss: {running_loss / 100:.8f}')
 
             # tb_x = epoch_index * len(data_loader) + i + 1
@@ -83,14 +71,7 @@ def main():
 
 
     dataset = patchSet(TEMPS_DIR, transforms=transform)
-    # sample_ds = SubsetRandomSampler(dataset, np.arange(dataset.__len__()))
 
-    # assert len(sample_ds) == dataset.__len__()
-
-    # train_sampler = RandomSampler(sample_ds)
-
-
-        # collate_fn=torch.utils.data.collate_fn)
     
     train_set_size = int(len(dataset) * 0.7)
     valid_set_size = len(dataset) - train_set_size
@@ -109,8 +90,6 @@ def main():
     print(images.shape)
     print(labels.shape)
 
-    # featNet = feature_net()
-    # metricNet = classifier_net()
 
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -119,8 +98,8 @@ def main():
     vldn_losses = np.array([])
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        avg_loss = train_one_epoch(epoch, train_loader, optimizer, model, loss_fn)
-        train_losses = np.append(train_losses, avg_loss)
+        last_train_loss = train_one_epoch(epoch, train_loader, optimizer, model, loss_fn)
+        train_losses = np.append(train_losses, last_train_loss)
 
         valid_loss = 0.0
 
@@ -129,15 +108,15 @@ def main():
             if torch.cuda.is_available():
                 data, labels = data.cuda(), labels.cuda()
         
-            # Forward Pass
-            target = model(data)
-            # Find the Loss
-            loss = loss_fn(target,labels)
-            # Calculate Loss
-            valid_loss += loss.item()
+            
+            target = model(data)# Forward Pass
+            loss = loss_fn(target,labels) # Find the Loss
+            valid_loss += loss.item() # Calculate Loss
+        
+        vloss = valid_loss / len(vaild_loader)
+        train_losses = np.append(vldn_losses, vloss)
 
-
-        print(f'Epoch {epoch+1} \t\t Training Loss: {avg_loss} \t\t Validation Loss: {valid_loss / len(vaild_loader)}')
+        print(f'Epoch {epoch+1} \t\t Training Loss: {last_train_loss} \t\t Validation Loss: {vloss}')
 
         np.savetxt(OUT_DIR+"trainLosses.csv", train_losses, delimiter=",")
         np.savetxt(OUT_DIR+"validationLosses.csv", vldn_losses, delimiter=",")
