@@ -123,10 +123,10 @@ def main():
 
         if epoch % 5 == 0:
             print("saving model")
-            torch.save(model.state_dict(), OUT_DIR+"matchnet-last")
+            torch.save(model.state_dict(), OUT_DIR+"matchnet-last.pt")
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    torch.save(model.state_dict(), OUT_DIR+"matchnet-"+timestr)
+    torch.save(model.state_dict(), OUT_DIR+"matchnet-"+timestr+".pt")
 
     print("That's it!")
 
