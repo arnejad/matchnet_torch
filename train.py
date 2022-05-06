@@ -114,7 +114,7 @@ def main():
             valid_loss += loss.item() # Calculate Loss
         
         vloss = valid_loss / len(vaild_loader)
-        train_losses = np.append(vldn_losses, vloss)
+        vldn_losses = np.append(vldn_losses, vloss)
 
         print(f'Epoch {epoch+1} \t\t Training Loss: {last_train_loss} \t\t Validation Loss: {vloss}')
 
