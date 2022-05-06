@@ -14,6 +14,9 @@ source /data/p306627/.envs/torch/bin/activate
 
 cp /data/p306627/DBs/matchnet.tar.xz /local/tmp/
 
+cd /local/tmp/
+
+tar -xvf matchnet.tar.xz
 
 python3 /home/p306627/codes/matchnet_torch/train.py 
 
