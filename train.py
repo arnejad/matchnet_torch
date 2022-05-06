@@ -1,12 +1,15 @@
+from tkinter import E
 from model import classifier_net, feature_net, matchnet
 from dataloader import DBcombiner, patchSet
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import random_split
-
 import numpy as np
 import os
 import time
+
+from telegram import Bot
+bot = Bot('5374814963:AAEhinhU8MDoFICF2nZkfsU1TTjy6Ipy8Cw')
 
 from config import DBs, DATA_DIR, TEMPS_DIR, OUT_DIR
 
@@ -63,6 +66,10 @@ def main():
     #check the model
     model = matchnet().to(device)
     print(model)
+
+    if os.path.exists(OUT_DIR+"matchnet-last.pt"):
+        model = torch.jit.load(OUT_DIR+"matchnet-last.pt")
+
         
     transform = transforms.Compose([    
         transforms.ToTensor(),
@@ -94,16 +101,25 @@ def main():
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     num_epochs = 150000
-    train_losses = np.array([])
-    vldn_losses = np.array([])
-    for epoch in range(num_epochs):
+
+    if os.path.exists(DATA_DIR+"trainLosses.csv"):
+        train_losses = np.genfromtxt(OUT_DIR+"trainLosses.csv", delimiter=',')
+        vldn_losses = np.genfromtxt(OUT_DIR+"validationLosses.csv", delimiter=',')
+    else:
+        train_losses = np.array([])
+        vldn_losses = np.array([])
+
+
+    start_ep = len(vldn_losses) + 1
+    for epoch in range(start_ep, num_epochs):
+        model.train()
         # train for one epoch, printing every 10 iterations
         last_train_loss = train_one_epoch(epoch, train_loader, optimizer, model, loss_fn)
         train_losses = np.append(train_losses, last_train_loss)
 
         valid_loss = 0.0
 
-
+        model.eval()
         for data, labels in vaild_loader:
             if torch.cuda.is_available():
                 data, labels = data.cuda(), labels.cuda()
@@ -123,12 +139,15 @@ def main():
 
         if epoch % 5 == 0:
             print("saving model")
-            torch.save(model.state_dict(), OUT_DIR+"matchnet-last.pt")
+            torch.save(model.state_dict(), OUT_DIR+"matchnet-weights-last.pt")
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
     torch.save(model.state_dict(), OUT_DIR+"matchnet-"+timestr+".pt")
 
     print("That's it!")
+
+    bot.send_message("@chester_van_Ash_bot", "Task finished successfully on Peregrine")
+
 
     # print(featNet)                         # what does the object tell us about itself?
 
@@ -136,3 +155,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+    from telegram import Bot
+
+bot = Bot('5374814963:AAEhinhU8MDoFICF2nZkfsU1TTjy6Ipy8Cw')
+
