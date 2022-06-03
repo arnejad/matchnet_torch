@@ -8,8 +8,6 @@ import numpy as np
 import os
 import time
 
-from telegram import Bot
-bot = Bot('5374814963:AAEhinhU8MDoFICF2nZkfsU1TTjy6Ipy8Cw')
 
 from config import DBs, DATA_DIR, TEMPS_DIR, OUT_DIR
 
